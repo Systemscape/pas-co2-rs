@@ -41,6 +41,20 @@ impl From<MeasurementMode> for u8 {
     }
 }
 
+/*
+TBD
+impl From<u8> for MeasurementMode {
+    fn from(value: u8) -> Self {
+        Self {
+            pwm_out_enable: (value & 0b0010_0000) != 0,
+            pwm_mode: ((value & 0b0001_0000) >> 4).into(),
+            baseline_offset_comp: ((value & 0b0000_1100) >> 2).into(),
+            operating_mode: (value & 0b0000_0011).into(),
+        }
+    }
+}
+    */
+
 impl super::Reg for MeasurementMode {
     fn address() -> u8 {
         0x04

@@ -10,24 +10,35 @@ pub struct MeasurementMode {
     /// Sensor operating mode
     pub operating_mode: OperatingMode,
 }
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[derive(Clone, Copy)]
 pub enum PwmMode {
     SinglePulse = 0,
     PulseTrain = 1,
 }
 
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[derive(Clone, Copy)]
 pub enum BaselineOffsetCompensation {
     Disabled = 0b00,
     Enabled = 0b01,
     Forced = 0b10,
+    _Reserved = 0b11,
 }
 
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[derive(Clone, Copy)]
 pub enum OperatingMode {
     Idle = 0b00,
     SingleShot = 0b01,
     Continuous = 0b10,
+    _Reserved = 0b11,
+}
+
+impl Default for MeasurementMode {
+    fn default() -> Self {
+        Self::from(0x24)
+    }
 }
 
 impl From<MeasurementMode> for u8 {
@@ -41,19 +52,29 @@ impl From<MeasurementMode> for u8 {
     }
 }
 
-/*
-TBD
 impl From<u8> for MeasurementMode {
     fn from(value: u8) -> Self {
         Self {
             pwm_out_enable: (value & 0b0010_0000) != 0,
-            pwm_mode: ((value & 0b0001_0000) >> 4).into(),
-            baseline_offset_comp: ((value & 0b0000_1100) >> 2).into(),
-            operating_mode: (value & 0b0000_0011).into(),
+            pwm_mode: match (value & 0b0001_0000) >> 4 {
+                0 => PwmMode::SinglePulse,
+                _ => PwmMode::PulseTrain,
+            },
+            baseline_offset_comp: match (value & 0b0000_1100) >> 2 {
+                0b00 => BaselineOffsetCompensation::Disabled,
+                0b01 => BaselineOffsetCompensation::Enabled,
+                0b10 => BaselineOffsetCompensation::Forced,
+                _ => BaselineOffsetCompensation::_Reserved,
+            },
+            operating_mode: match value & 0b0000_0011 {
+                0b00 => OperatingMode::Idle,
+                0b01 => OperatingMode::SingleShot,
+                0b10 => OperatingMode::Continuous,
+                _ => OperatingMode::_Reserved,
+            },
         }
     }
 }
-    */
 
 impl super::Reg for MeasurementMode {
     fn address() -> u8 {

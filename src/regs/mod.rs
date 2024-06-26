@@ -6,7 +6,7 @@ mod status;
 pub use status::Status;
 
 mod measurement_mode;
-pub use measurement_mode::MeasurementMode;
+pub use measurement_mode::*;
 
 pub struct MeasurementPeriod {}
 impl Reg for MeasurementPeriod {

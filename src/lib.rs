@@ -1,20 +1,21 @@
-use embedded_hal::i2c::I2c;
+#![no_std]
+use embedded_hal::i2c::{I2c, SevenBitAddress};
 
 pub mod regs;
 use crate::regs::*;
 
 pub const ADDRESS: u8 = 0x28;
-pub struct PasCo2<I2C: I2c> {
+pub struct PasCo2<I2C: I2c<SevenBitAddress>> {
     i2c: I2C,
 }
 
-impl<I2C: I2c> PasCo2<I2C> {
+impl<I2C: I2c<SevenBitAddress>> PasCo2<I2C> {
     pub fn new(i2c: I2C) -> Self {
         Self { i2c }
     }
 
     pub fn get_status(&mut self) -> Result<Status, I2C::Error> {
-        let mut temp = [0];
+        let mut temp: [u8; 1] = [0];
         self.i2c
             .write_read(ADDRESS, &[Status::address()], &mut temp)?;
         Ok(temp[0].into())
@@ -44,26 +45,29 @@ impl<I2C: I2c> PasCo2<I2C> {
     }
 
     pub fn set_measurement_mode(&mut self, mode: MeasurementMode) -> Result<(), I2C::Error> {
+        let mode: u8 = mode.into();
+        #[cfg(feature = "defmt")]
+        defmt::info!("Setting measurement mode: {:b}", mode);
+
         self.i2c
             .write(ADDRESS, &[MeasurementMode::address(), mode.into()])?;
         Ok(())
     }
 
-    pub fn get_measurement_mode(&mut self) -> Result<u8, I2C::Error> {
+    pub fn get_measurement_mode(&mut self) -> Result<MeasurementMode, I2C::Error> {
         let mut temp = [0];
         self.i2c
             .write_read(ADDRESS, &[MeasurementMode::address()], &mut temp)?;
-        Ok(temp[0])
+        Ok(temp[0].into())
     }
     /// Start a single measurement
     ///
     /// *Caution:*
     pub fn start_measurement(&mut self) -> Result<(), I2C::Error> {
-        // Get current mode, save it and clear the last 2 bits
-        let mode = self.get_measurement_mode()? & 0b1111_1100;
-        let mode = mode | 0x01; // Set single shot mode
+        let mut mode = self.get_measurement_mode()?;
+        mode.operating_mode = OperatingMode::SingleShot;
         self.i2c
-            .write(ADDRESS, &[MeasurementMode::address(), mode])?;
+            .write(ADDRESS, &[MeasurementMode::address(), mode.into()])?;
         Ok(())
     }
 

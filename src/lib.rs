@@ -1,6 +1,7 @@
 #![no_std]
 use embedded_hal::i2c::{I2c, SevenBitAddress};
 
+/// Sensor registers (addresses, struct representations etc.)
 pub mod regs;
 use crate::regs::*;
 

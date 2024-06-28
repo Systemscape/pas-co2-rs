@@ -60,7 +60,7 @@ impl<I2C: I2c<SevenBitAddress>> PasCo2<I2C> {
         defmt::info!("Setting measurement mode: {:b}", mode);
 
         self.i2c
-            .write(ADDRESS, &[MeasurementMode::address(), mode.into()])?;
+            .write(ADDRESS, &[MeasurementMode::address(), mode])?;
         Ok(())
     }
 
@@ -110,7 +110,7 @@ impl<I2C: I2c<SevenBitAddress>> PasCo2<I2C> {
 
     /// Clear the int active bit and the alarm bit of the sensor's [MeasurementStatus] register
     pub fn clear_measurement_status(&mut self) -> Result<(), I2C::Error> {
-        let bitmask = &MeasurementStatus::clear_int_active() & MeasurementStatus::clear_alarm();
+        let bitmask = MeasurementStatus::clear_int_active() & MeasurementStatus::clear_alarm();
         self.i2c
             .write(ADDRESS, &[MeasurementStatus::address(), bitmask])?;
         Ok(())
@@ -124,7 +124,7 @@ impl<I2C: I2c<SevenBitAddress>> PasCo2<I2C> {
         defmt::info!("Setting interrupt config: {:b}", config);
 
         self.i2c
-            .write(ADDRESS, &[InterruptConfig::address(), config.into()])?;
+            .write(ADDRESS, &[InterruptConfig::address(), config])?;
         Ok(())
     }
 

@@ -35,7 +35,7 @@ impl From<u8> for Status {
         Self {
             ready: (value & 0b1000_0000) != 0,
             pwm_dis: (value & 0b0100_0000) != 0,
-            temperature_error:(value & 0b0010_0000) != 0,
+            temperature_error: (value & 0b0010_0000) != 0,
             voltage_error: (value & 0b0001_0000) != 0,
             communication_error: (value & 0b0000_1000) != 0,
         }
@@ -47,7 +47,6 @@ impl super::Reg for Status {
         0x01
     }
 }
-
 
 #[cfg(test)]
 #[test]

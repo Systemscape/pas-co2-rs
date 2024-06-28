@@ -3,12 +3,11 @@
 pub struct MeasurementStatus {
     /// New data available in CO2PPM Register
     pub data_ready: bool,
-    /// Pin INT has been latched to active state 
+    /// Pin INT has been latched to active state
     pub int_active: bool,
     /// Alarm notification (threshold violation occured)
-    pub alarm: bool
+    pub alarm: bool,
 }
-
 
 impl MeasurementStatus {
     /// Bitmask to clear the int pin active bit

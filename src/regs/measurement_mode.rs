@@ -43,12 +43,10 @@ impl Default for MeasurementMode {
 
 impl From<MeasurementMode> for u8 {
     fn from(value: MeasurementMode) -> Self {
-        let bitmask = (value.pwm_out_enable as u8) << 5
+        (value.pwm_out_enable as u8) << 5
             | (value.pwm_mode as u8) << 4
             | (value.baseline_offset_comp as u8) << 2
-            | value.operating_mode as u8;
-
-        bitmask
+            | value.operating_mode as u8
     }
 }
 

@@ -31,7 +31,7 @@ impl<I2C: I2c<SevenBitAddress>> PasCo2<I2C> {
 
     /// Must be between 5 and 4095 seconds
     /// Values below 5s are treated as 5s by the sensor and generate a communication error.
-    pub fn set_measurement_period(&mut self, period: u16) -> Result<(), I2C::Error> {
+    pub fn set_measurement_period(&mut self, period: i16) -> Result<(), I2C::Error> {
         debug_assert!(period <= 4096);
         debug_assert!(period >= 5);
 
@@ -60,6 +60,7 @@ impl<I2C: I2c<SevenBitAddress>> PasCo2<I2C> {
             .write_read(ADDRESS, &[MeasurementMode::address()], &mut temp)?;
         Ok(temp[0].into())
     }
+
     /// Start a single measurement
     ///
     /// *Caution:*
@@ -71,22 +72,77 @@ impl<I2C: I2c<SevenBitAddress>> PasCo2<I2C> {
         Ok(())
     }
 
-    pub fn get_co2_ppm(&mut self) -> Result<u16, I2C::Error> {
+    pub fn get_co2_ppm(&mut self) -> Result<i16, I2C::Error> {
         let mut temp = [0, 0];
         // Actually two bytes to be read, but sensor supports bulk read and write
         // i.e., automatically increments the register address
         self.i2c
             .write_read(ADDRESS, &[Co2Ppm::address()], &mut temp)?;
 
-        let co2_ppm = u16::from_be_bytes([temp[0], temp[1]]);
+        let co2_ppm = i16::from_be_bytes([temp[0], temp[1]]);
 
         Ok(co2_ppm)
+    }
+
+    pub fn get_measurement_status(&mut self) -> Result<MeasurementStatus, I2C::Error> {
+        let mut temp = [0];
+        self.i2c
+            .write_read(ADDRESS, &[MeasurementStatus::address()], &mut temp)?;
+        Ok(temp[0].into())
+    }
+
+    pub fn clear_measurement_status(&mut self) -> Result<(), I2C::Error> {
+        let bitmask = &MeasurementStatus::clear_int_active() & MeasurementStatus::clear_alarm();
+        self.i2c
+            .write(ADDRESS, &[MeasurementStatus::address(), bitmask])?;
+        Ok(())
+    }
+
+    pub fn set_interrupt_config(&mut self, config: InterruptConfig) -> Result<(), I2C::Error> {
+        let config: u8 = config.into();
+
+        #[cfg(feature = "defmt")]
+        defmt::info!("Setting interrupt config: {:b}", config);
+
+        self.i2c
+            .write(ADDRESS, &[InterruptConfig::address(), config.into()])?;
+        Ok(())
+    }
+
+    pub fn get_interrupt_config(&mut self) -> Result<InterruptConfig, I2C::Error> {
+        let mut temp = [0];
+        self.i2c
+            .write_read(ADDRESS, &[InterruptConfig::address()], &mut temp)?;
+        Ok(temp[0].into())
+    }
+
+    pub fn set_alarm_threshold(&mut self, threshold_ppm: AlarmThreshold) -> Result<(), I2C::Error> {
+        let threshold_ppm = threshold_ppm.0;
+        // Although it is a signed integer (why?), it makes no sense to have a negative value here.
+        debug_assert!(threshold_ppm > 0);
+
+        let threshold_ppm = threshold_ppm.to_be_bytes();
+
+        self.i2c.write(
+            ADDRESS,
+            &[
+                AlarmThreshold::address(),
+                threshold_ppm[0],
+                threshold_ppm[1],
+            ],
+        )?;
+        Ok(())
     }
 
     /// Valid range: 750 hPa to 1150 hPa.
     ///
     /// Setting to invalid values clips the pressure and causes a communication error
-    pub fn set_pressure_compensation(&mut self, pressure: u16) -> Result<(), I2C::Error> {
+    pub fn set_pressure_compensation(
+        &mut self,
+        pressure: PressureCompensation,
+    ) -> Result<(), I2C::Error> {
+        let pressure = pressure.0;
+
         debug_assert!(pressure <= 1150);
         debug_assert!(pressure >= 750);
 
@@ -94,8 +150,47 @@ impl<I2C: I2c<SevenBitAddress>> PasCo2<I2C> {
 
         self.i2c.write(
             ADDRESS,
-            &[MeasurementMode::address(), pressure[0], pressure[1]],
+            &[PressureCompensation::address(), pressure[0], pressure[1]],
         )?;
+        Ok(())
+    }
+
+    /// Set the Automatic Baseline Offset Compensation Reference
+    ///
+    /// Valid range: 350 ppm to 900 ppm.
+    ///
+    /// Setting to invalid values clips the value and causes a communication error
+    pub fn set_aboc(&mut self, aboc: ABOC) -> Result<(), I2C::Error> {
+        let aboc = aboc.0;
+
+        debug_assert!(aboc <= 900);
+        debug_assert!(aboc >= 350);
+
+        let aboc = aboc.to_be_bytes();
+
+        self.i2c.write(
+            ADDRESS,
+            &[PressureCompensation::address(), aboc[0], aboc[1]],
+        )?;
+        Ok(())
+    }
+
+    /// Perform a write-then-read to the scratch pad register and return the read back value.
+    pub fn test_write_read(&mut self, val: u8) -> Result<u8, I2C::Error> {
+        let mut tmp = [0u8; 1];
+
+        self.i2c.write(ADDRESS, &[Scratchpad::address(), val])?;
+
+        self.i2c
+            .write_read(ADDRESS, &[Scratchpad::address()], &mut tmp)?;
+
+        Ok(tmp[0])
+    }
+
+    pub fn soft_reset(&mut self, reset: SoftReset) -> Result<(), I2C::Error> {
+        self.i2c
+            .write(ADDRESS, &[SoftReset::address(), reset as u8])?;
+
         Ok(())
     }
 }

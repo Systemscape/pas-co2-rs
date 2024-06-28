@@ -1,6 +1,6 @@
 [package]
 name = "pas-co2-rs"
-version = "0.0.0"
+version = "0.1.0-beta.1"
 edition = "2021"
 authors = [
     "Joel Schulz-Andres <joel@systemscape.de>",
@@ -12,8 +12,12 @@ categories = ["no-std", "embedded", "sensor", "co2"]
 readme = "README.md"
 
 [features]
+default = ["defmt"]
 defmt = ["dep:defmt", "embedded-hal/defmt-03"]
 
 [dependencies]
 defmt = { version = "0.3", optional = true }
 embedded-hal = "1.0.0"
+
+[badges]
+maintenance = { status = "actively-developed" }

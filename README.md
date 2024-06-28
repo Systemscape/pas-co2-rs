@@ -2,44 +2,36 @@
 Inofficial Rust driver for Infineon XENSIV (TM) PAS CO2 sensor.
 
 ```rust
-use pas_co2_rs::{
-    regs::{measurement_mode::OperatingMode, MeasurementMode, PressureCompensation},
-    PasCo2,
-};
-
-let i2c = embassy_stm32::i2c::I2c::new(
-    p.I2C1,
-    p.PB8,
-    p.PB9,
-    Irqs,
-    p.DMA1_CH6,
-    p.DMA1_CH0,
-    Hertz(100_000),
-    config,
-);
-
 // Obtain an instance of the driver
-let pas_co2 = PasCo2::new(i2c);
+let mut pas_co2 = PasCo2::new(i2c);
 
 info!("Status: {}", pas_co2.get_status());
 
-/// Set to idle mode (default)
+// Set to idle mode (default)
 let mut mode = MeasurementMode::default();
-mode.operating_mode = OperatingMode::Idle;
+mode.operating_mode = measurement_mode::OperatingMode::Idle;
 pas_co2.set_measurement_mode(mode).unwrap();
 
 let pressure: u16 = 950; //hPa
 
-pas_co2.set_pressure_compensation(PressureCompensation(pressure)).unwrap();
+pas_co2
+    .set_pressure_compensation(PressureCompensation(pressure))
+    .unwrap();
 
 let status = pas_co2.get_status().unwrap();
 info!("Status: {}", status);
 
 pas_co2.clear_status().unwrap();
 
-pas_co2.start_measurement().unwrap();
+loop {
+    pas_co2.start_measurement().unwrap();
 
-embassy_time::Delay {}.delay_ms(1150);
+    Timer::after_millis(1150).await;
 
-let co2_ppm = pas_co2.get_co2_ppm().unwrap();
+    let co2_ppm = pas_co2.get_co2_ppm().unwrap();
+
+    info!("CO2: {} ppm", co2_ppm);
+
+    Timer::after_millis(10000).await;
+}
 ```

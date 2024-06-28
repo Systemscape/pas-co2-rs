@@ -1,19 +1,26 @@
+/// Shared trait for all registers
 pub trait Reg {
+    /// Register address
     fn address() -> u8;
 }
 
-mod status;
+/// Status register representation
+pub mod status;
 pub use status::Status;
 
-mod measurement_mode;
-pub use measurement_mode::*;
+/// Measurement mode register representation
+pub mod measurement_mode;
+pub use measurement_mode::MeasurementMode;
 
-mod measurement_status;
-pub use measurement_status::*;
+/// Measurement status register representation
+pub mod measurement_status;
+pub use measurement_status::MeasurementStatus;
 
-mod interrupt_config;
-pub use interrupt_config::*;
+/// Interrupt configuration register representation
+pub mod interrupt_config;
+pub use interrupt_config::InterruptConfig;
 
+/// Measurement period (or rate) register
 pub struct MeasurementPeriod;
 impl Reg for MeasurementPeriod {
     fn address() -> u8 {
@@ -21,6 +28,7 @@ impl Reg for MeasurementPeriod {
     }
 }
 
+/// CO2 PPM measurement register
 pub struct Co2Ppm;
 impl Reg for Co2Ppm {
     fn address() -> u8 {
@@ -28,6 +36,7 @@ impl Reg for Co2Ppm {
     }
 }
 
+/// Alarm threshold PPM register
 pub struct AlarmThreshold(pub i16);
 impl Reg for AlarmThreshold {
     fn address() -> u8 {
@@ -40,6 +49,7 @@ impl Default for AlarmThreshold {
     }
 }
 
+/// Pressure compensation register
 pub struct PressureCompensation(pub u16);
 impl Reg for PressureCompensation {
     fn address() -> u8 {
@@ -65,6 +75,7 @@ impl Default for ABOC {
     }
 }
 
+/// Scratchpad register (free to write and read by the user)
 pub struct Scratchpad;
 impl Reg for Scratchpad {
     fn address() -> u8 {
@@ -72,6 +83,7 @@ impl Reg for Scratchpad {
     }
 }
 
+/// Soft reset register
 pub enum SoftReset {
     /// Trigger a soft reset event
     SoftReset = 0xA3,
@@ -86,7 +98,6 @@ pub enum SoftReset {
     /// Enable the stepwise reactive IIR filter (default enabled)
     EnableStepwiseReaciveIirFilter = 0xFE,
 }
-
 impl Reg for SoftReset {
     fn address() -> u8 {
         0x10

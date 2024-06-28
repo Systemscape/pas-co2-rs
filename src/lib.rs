@@ -4,16 +4,21 @@ use embedded_hal::i2c::{I2c, SevenBitAddress};
 pub mod regs;
 use crate::regs::*;
 
+/// I2C Address of the Sensor
 pub const ADDRESS: u8 = 0x28;
+
+/// Driver for the Infineon XENSIV PAS CO2 sensor
 pub struct PasCo2<I2C: I2c<SevenBitAddress>> {
     i2c: I2C,
 }
 
 impl<I2C: I2c<SevenBitAddress>> PasCo2<I2C> {
+    /// Create a new instance of this driver
     pub fn new(i2c: I2C) -> Self {
         Self { i2c }
     }
 
+    /// Obtain the sensor's [Status]
     pub fn get_status(&mut self) -> Result<Status, I2C::Error> {
         let mut temp: [u8; 1] = [0];
         self.i2c
@@ -21,6 +26,7 @@ impl<I2C: I2c<SevenBitAddress>> PasCo2<I2C> {
         Ok(temp[0].into())
     }
 
+    /// Clear temperature, voltage and communication errors from the sensor status
     pub fn clear_status(&mut self) -> Result<(), I2C::Error> {
         let bitmask = Status::clear_temperature_error()
             & Status::clear_voltage_error()
@@ -29,6 +35,8 @@ impl<I2C: I2c<SevenBitAddress>> PasCo2<I2C> {
         Ok(())
     }
 
+    /// Time between two measurements in continuous mode
+    ///
     /// Must be between 5 and 4095 seconds
     /// Values below 5s are treated as 5s by the sensor and generate a communication error.
     pub fn set_measurement_period(&mut self, period: i16) -> Result<(), I2C::Error> {
@@ -44,6 +52,7 @@ impl<I2C: I2c<SevenBitAddress>> PasCo2<I2C> {
         Ok(())
     }
 
+    /// Configure the [MeasurementMode]
     pub fn set_measurement_mode(&mut self, mode: MeasurementMode) -> Result<(), I2C::Error> {
         let mode: u8 = mode.into();
         #[cfg(feature = "defmt")]
@@ -54,6 +63,7 @@ impl<I2C: I2c<SevenBitAddress>> PasCo2<I2C> {
         Ok(())
     }
 
+    /// Read the sensor's [MeasurementMode]
     pub fn get_measurement_mode(&mut self) -> Result<MeasurementMode, I2C::Error> {
         let mut temp = [0];
         self.i2c
@@ -61,17 +71,22 @@ impl<I2C: I2c<SevenBitAddress>> PasCo2<I2C> {
         Ok(temp[0].into())
     }
 
-    /// Start a single measurement
+    /// Start a single measurement.
     ///
-    /// *Caution:*
+    /// This function reads the current [MeasurementMode] and sets it
+    /// operating mode to [measurement_mode::OperatingMode::SingleShot].
     pub fn start_measurement(&mut self) -> Result<(), I2C::Error> {
         let mut mode = self.get_measurement_mode()?;
-        mode.operating_mode = OperatingMode::SingleShot;
+        mode.operating_mode = measurement_mode::OperatingMode::SingleShot;
         self.i2c
             .write(ADDRESS, &[MeasurementMode::address(), mode.into()])?;
         Ok(())
     }
 
+    /// Get the current CO2 reading in PPM
+    ///
+    /// **Caution**: The user is responsible for starting a measurement and checking whether
+    /// measured data is available. See [Self::get_measurement_status()].
     pub fn get_co2_ppm(&mut self) -> Result<i16, I2C::Error> {
         let mut temp = [0, 0];
         // Actually two bytes to be read, but sensor supports bulk read and write
@@ -84,6 +99,7 @@ impl<I2C: I2c<SevenBitAddress>> PasCo2<I2C> {
         Ok(co2_ppm)
     }
 
+    /// Get the current sensor [MeasurementStatus]
     pub fn get_measurement_status(&mut self) -> Result<MeasurementStatus, I2C::Error> {
         let mut temp = [0];
         self.i2c
@@ -91,6 +107,7 @@ impl<I2C: I2c<SevenBitAddress>> PasCo2<I2C> {
         Ok(temp[0].into())
     }
 
+    /// Clear the int active bit and the alarm bit of the sensor's [MeasurementStatus] register
     pub fn clear_measurement_status(&mut self) -> Result<(), I2C::Error> {
         let bitmask = &MeasurementStatus::clear_int_active() & MeasurementStatus::clear_alarm();
         self.i2c
@@ -98,6 +115,7 @@ impl<I2C: I2c<SevenBitAddress>> PasCo2<I2C> {
         Ok(())
     }
 
+    /// Configure when the interrupt pin is activated
     pub fn set_interrupt_config(&mut self, config: InterruptConfig) -> Result<(), I2C::Error> {
         let config: u8 = config.into();
 
@@ -109,6 +127,7 @@ impl<I2C: I2c<SevenBitAddress>> PasCo2<I2C> {
         Ok(())
     }
 
+    /// Get the current sensor [InterruptConfig]
     pub fn get_interrupt_config(&mut self) -> Result<InterruptConfig, I2C::Error> {
         let mut temp = [0];
         self.i2c
@@ -116,6 +135,7 @@ impl<I2C: I2c<SevenBitAddress>> PasCo2<I2C> {
         Ok(temp[0].into())
     }
 
+    /// Set the threshold for the alarm status bit or interrupt (if enabled)
     pub fn set_alarm_threshold(&mut self, threshold_ppm: AlarmThreshold) -> Result<(), I2C::Error> {
         let threshold_ppm = threshold_ppm.0;
         // Although it is a signed integer (why?), it makes no sense to have a negative value here.
@@ -134,6 +154,8 @@ impl<I2C: I2c<SevenBitAddress>> PasCo2<I2C> {
         Ok(())
     }
 
+    /// Set the [PressureCompensation] in hPa.
+    ///
     /// Valid range: 750 hPa to 1150 hPa.
     ///
     /// Setting to invalid values clips the pressure and causes a communication error
@@ -155,7 +177,7 @@ impl<I2C: I2c<SevenBitAddress>> PasCo2<I2C> {
         Ok(())
     }
 
-    /// Set the Automatic Baseline Offset Compensation Reference
+    /// Set the Automatic Baseline Offset Compensation Reference in PPM.
     ///
     /// Valid range: 350 ppm to 900 ppm.
     ///
@@ -187,6 +209,7 @@ impl<I2C: I2c<SevenBitAddress>> PasCo2<I2C> {
         Ok(tmp[0])
     }
 
+    /// Send a [SoftReset] event to the sensor
     pub fn soft_reset(&mut self, reset: SoftReset) -> Result<(), I2C::Error> {
         self.i2c
             .write(ADDRESS, &[SoftReset::address(), reset as u8])?;

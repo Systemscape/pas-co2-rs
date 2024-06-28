@@ -9,7 +9,9 @@ authors = [
 description = "Inofficial Rust driver for Infineon PAS CO2 sensor"
 license = "MIT"
 categories = ["no-std", "embedded", "sensor", "co2"]
+
 readme = "README.md"
+repository = "https://github.com/Systemscape/pas-co2-rs"
 
 [features]
 default = ["defmt"]

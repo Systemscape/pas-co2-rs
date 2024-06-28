@@ -43,9 +43,11 @@ impl Reg for AlarmThreshold {
         0x09
     }
 }
+// Explicitly state it here that the threshold is zero
+#[allow(clippy::derivable_impls)]
 impl Default for AlarmThreshold {
     fn default() -> Self {
-        Self(0)
+        Self(0x0)
     }
 }
 

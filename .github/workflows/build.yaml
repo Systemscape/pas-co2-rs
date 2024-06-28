@@ -59,6 +59,4 @@ jobs:
           target: thumbv7em-none-eabi
       - run: >
           cargo build
-          --target thumbv7m-none-eabi
           --all-features
-          

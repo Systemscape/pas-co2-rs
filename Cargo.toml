@@ -20,6 +20,7 @@ defmt = ["dep:defmt", "embedded-hal/defmt-03"]
 [dependencies]
 defmt = { version = "0.3", optional = true }
 embedded-hal = "1.0.0"
+num_enum = { version = "0.7.2", default-features = false }
 
 [badges]
 maintenance = { status = "actively-developed" }

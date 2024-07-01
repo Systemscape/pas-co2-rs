@@ -1,7 +1,11 @@
 #![no_std]
 use core::panic;
 
-use embedded_hal::i2c::{I2c, SevenBitAddress};
+use defmt::info;
+use embedded_hal::{
+    delay::DelayNs,
+    i2c::{I2c, SevenBitAddress},
+};
 
 /// Sensor registers (addresses, struct representations etc.)
 pub mod regs;
@@ -184,7 +188,6 @@ where
         self.read_reg_u16(Register::PressureReference)
     }
 
-
     /// Set the Automatic Baseline Offset Compensation Reference in PPM.
     ///
     /// Valid range: 350 ppm to 900 ppm.
@@ -199,6 +202,47 @@ where
         self.write_reg(Register::PressureReference, &aboc)
     }
 
+    pub fn do_forced_compensation(
+        &mut self,
+        calibration_value: i16,
+        mut delay: impl DelayNs,
+    ) -> Result<(), Error<T::Error>> {
+        // 1. set idle mode
+        let mut mode = self.get_measurement_mode()?;
+        mode.operating_mode = OperatingMode::Idle;
+        self.set_measurement_mode(mode)?;
+
+        // 2. Configure measurement rate to 10s
+        self.set_measurement_period(10)?;
+
+        // 3. Set calibration register according to the reference value
+        self.set_aboc(calibration_value)?;
+
+        // 4. Enable forced calibration at continuous mode
+        mode.baseline_offset_comp = BaselineOffsetCompensation::Forced;
+        mode.operating_mode = OperatingMode::Continuous;
+        self.set_measurement_mode(mode)?;
+
+        // 5. run loop for 3 times
+        for _ in 0..3 {
+            if self.get_measurement_status()?.data_ready {
+                let co2_ppm = self.get_co2_ppm()?;
+                #[cfg(feature = "defmt")]
+                info!("Read CO2 PPM: {}", co2_ppm);
+            }
+            delay.delay_ms(100);
+        }
+
+        // 6. Set to Idle Mode
+        mode.operating_mode = OperatingMode::Idle;
+        self.set_measurement_mode(mode)?;
+
+        // 7. Save the calibration
+        //self.soft_reset(SoftReset::SaveForceCalibNvm);
+
+        Ok(())
+    }
+
     /// Perform a write-then-read to the scratch pad register and return the read back value.
     pub fn test_write_read(&mut self, val: u8) -> Result<u8, Error<T::Error>> {
         self.write_reg(Register::ScratchPad, &[val])?;
@@ -211,7 +255,7 @@ where
         self.write_reg(Register::SensorReset, &[reset.into()])
     }
 
-    /// Length of val must be 1 or 2
+    /// Length of val must be 1 or 2. The sensor only has 1 or 2 byte registers
     fn write_reg(&mut self, reg: Register, val: &[u8]) -> Result<(), Error<T::Error>> {
         assert!(val.len() <= 2);
         assert!(!val.is_empty());

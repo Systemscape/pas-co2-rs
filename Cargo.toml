@@ -12,7 +12,7 @@ description = "Inofficial Rust driver for Infineon PAS CO2 sensor"
 license-file = "LICENSE"
 readme = "README.md"
 
-categories = ["no-std", "embedded", "sensor", "co2"]
+categories = ["no-std", "embedded", "hardware-support"]
 
 [features]
 default = ["defmt"]

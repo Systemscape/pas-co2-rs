@@ -1,10 +1,9 @@
 #![no_std]
 use core::panic;
 
-use defmt::info;
 use embedded_hal::{
     delay::DelayNs,
-    i2c::{I2c, SevenBitAddress},
+    i2c::{Error as ehal_i2c_error, ErrorKind, I2c, SevenBitAddress},
 };
 
 /// Sensor registers (addresses, struct representations etc.)
@@ -14,6 +13,7 @@ use crate::regs::*;
 /// I2C Address of the Sensor
 pub const ADDRESS: u8 = 0x28;
 
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[derive(Debug, Copy, Clone)]
 pub enum Error<T> {
     /// Error on the I2C interface
@@ -29,6 +29,7 @@ impl<T> From<T> for Error<T> {
     }
 }
 
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[derive(Debug, Copy, Clone)]
 pub enum ResponseError {
     InvalidRegisterValue,
@@ -87,6 +88,10 @@ where
         let period = (period & 0x0FFF).to_be_bytes();
 
         self.write_reg(Register::MeasurementRate, &period)
+    }
+
+    pub fn get_measurement_period(&mut self)  -> Result<i16, Error<T::Error>>{
+        self.read_reg_i16(Register::MeasurementRate)
     }
 
     /// Configure the [MeasurementMode]
@@ -169,6 +174,10 @@ where
         self.write_reg(Register::AlarmThreshold, &threshold_ppm)
     }
 
+    pub fn get_alarm_threshold(&mut self) -> Result<i16, Error<T::Error>> {
+        self.read_reg_i16(Register::AlarmThreshold)
+    }
+
     /// Set the [PressureCompensation] in hPa.
     ///
     /// Valid range: 750 hPa to 1150 hPa.
@@ -202,11 +211,20 @@ where
         self.write_reg(Register::PressureReference, &aboc)
     }
 
+    pub fn get_aboc(&mut self) -> Result <i16, Error<T::Error>> {
+        self.read_reg_i16(Register::PressureReference)
+    }
+
     pub fn do_forced_compensation(
         &mut self,
         calibration_value: i16,
         mut delay: impl DelayNs,
     ) -> Result<(), Error<T::Error>> {
+        #[cfg(feature = "defmt")]
+        defmt::info!(
+            "Entering forced compensation with reference: {}",
+            calibration_value
+        );
         // 1. set idle mode
         let mut mode = self.get_measurement_mode()?;
         mode.operating_mode = OperatingMode::Idle;
@@ -223,15 +241,35 @@ where
         mode.operating_mode = OperatingMode::Continuous;
         self.set_measurement_mode(mode)?;
 
+        #[cfg(feature = "defmt")]
+        defmt::info!("Entering compensation loop.");
+
         // 5. run loop for 3 times
-        for _ in 0..3 {
-            if self.get_measurement_status()?.data_ready {
-                let co2_ppm = self.get_co2_ppm()?;
-                #[cfg(feature = "defmt")]
-                info!("Read CO2 PPM: {}", co2_ppm);
+        for i in 0..3 {
+            #[cfg(feature = "defmt")]
+            defmt::info!("Loop index: {}", i);
+            loop {
+                match self.get_measurement_status() {
+                    Ok(status) if status.data_ready => {
+                        let co2_ppm = self.get_co2_ppm()?;
+                        #[cfg(feature = "defmt")]
+                        defmt::info!("Read CO2 PPM: {}", co2_ppm);
+                        // Stop waiting and go into next for-loop iteration
+                        break;
+                    }
+                    Ok(_) => (),
+                    Err(Error::Interface(e)) if matches!(e.kind(), ErrorKind::NoAcknowledge(_)) => {
+                        #[cfg(feature = "defmt")]
+                        defmt::warn!("Got Nack instead of Measurement Status");
+                    }
+                    Err(e) => return Err(e),
+                }
+                delay.delay_ms(100);
             }
-            delay.delay_ms(100);
         }
+
+        #[cfg(feature = "defmt")]
+        defmt::info!("Leaving compensation loop.");
 
         // 6. Set to Idle Mode
         mode.operating_mode = OperatingMode::Idle;

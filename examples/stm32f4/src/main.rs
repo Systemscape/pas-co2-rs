@@ -5,7 +5,7 @@ use defmt::*;
 use embassy_executor::Spawner;
 use embassy_stm32::time::Hertz;
 use embassy_stm32::{bind_interrupts, i2c, peripherals};
-use embassy_time::Timer;
+use embassy_time::{Duration, Timer};
 
 use pas_co2_rs::regs::*;
 use pas_co2_rs::*;
@@ -24,29 +24,35 @@ async fn main(_spawner: Spawner) {
     let mut config = embassy_stm32::i2c::Config::default();
     config.sda_pullup = true;
     config.scl_pullup = true;
+    config.timeout = Duration::from_secs(1);
 
     let i2c = embassy_stm32::i2c::I2c::new_blocking(p.I2C1, p.PB8, p.PB9, Hertz(100_000), config);
 
     // Obtain an instance of the driver
     let mut pas_co2 = PasCo2::new(i2c);
 
-    info!("Status: {}", pas_co2.get_status());
+    info!("Status: {}", pas_co2.get_status().unwrap());
 
     // Set to idle mode (default)
     let mut mode = MeasurementMode::default();
-    mode.operating_mode = measurement_mode::OperatingMode::Idle;
+    mode.operating_mode = OperatingMode::Idle;
+
     pas_co2.set_measurement_mode(mode).unwrap();
 
     let pressure: u16 = 950; //hPa
+    pas_co2.set_pressure_compensation(pressure).unwrap();
 
-    pas_co2
-        .set_pressure_compensation(PressureCompensation(pressure))
-        .unwrap();
 
-    let status = pas_co2.get_status().unwrap();
-    info!("Status: {}", status);
+    defmt::info!("Testing write -> read");
+    let test_val = 0b1010_0101;
+    let read_val = pas_co2.test_write_read(test_val).unwrap();
+    defmt::assert_eq!(test_val, read_val);
+
 
     pas_co2.clear_status().unwrap();
+
+    pas_co2.do_forced_compensation(490, embassy_time::Delay).unwrap();
+
 
     loop {
         pas_co2.start_measurement().unwrap();

@@ -26,43 +26,63 @@ async fn main(_spawner: Spawner) {
     config.scl_pullup = true;
     config.timeout = Duration::from_secs(1);
 
-    let i2c = embassy_stm32::i2c::I2c::new_blocking(p.I2C1, p.PB8, p.PB9, Hertz(100_000), config);
+    info!("Configuring I2C");
+
+    let i2c = embassy_stm32::i2c::I2c::new(
+        p.I2C1,
+        p.PB8,
+        p.PB9,
+        Irqs,
+        p.DMA1_CH6,
+        p.DMA1_CH0,
+        Hertz(400_000),
+        config,
+    );
+
+    info!("Obtaining driver instance");
 
     // Obtain an instance of the driver
     let mut pas_co2 = PasCo2::new(i2c);
 
-    info!("Status: {}", pas_co2.get_status().unwrap());
+    info!("Status: {}", pas_co2.get_status().await.unwrap());
 
     // Set to idle mode (default)
-    let mut mode = MeasurementMode::default();
-    mode.operating_mode = OperatingMode::Idle;
+    let mode = MeasurementMode {
+        operating_mode: OperatingMode::Idle,
+        ..Default::default()
+    };
 
-    pas_co2.set_measurement_mode(mode).unwrap();
+    pas_co2.set_measurement_mode(mode).await.unwrap();
 
     let pressure: u16 = 950; //hPa
-    pas_co2.set_pressure_compensation(pressure).unwrap();
-
+    pas_co2.set_pressure_compensation(pressure).await.unwrap();
 
     defmt::info!("Testing write -> read");
     let test_val = 0b1010_0101;
-    let read_val = pas_co2.test_write_read(test_val).unwrap();
+    let read_val = pas_co2.test_write_read(test_val).await.unwrap();
     defmt::assert_eq!(test_val, read_val);
 
+    pas_co2.clear_status().await.unwrap();
 
-    pas_co2.clear_status().unwrap();
+    // Perform a forced calibration/compensation at 490 ppm reference
 
-    pas_co2.do_forced_compensation(490, embassy_time::Delay).unwrap();
-
+    /*
+        pas_co2
+            .do_forced_compensation(490, embassy_time::Delay)
+            .await
+            .unwrap();
+    */
 
     loop {
-        pas_co2.start_measurement().unwrap();
+        defmt::info!("Starting measurement");
+        pas_co2.start_measurement().await.unwrap();
 
         Timer::after_millis(1150).await;
 
-        let co2_ppm = pas_co2.get_co2_ppm().unwrap();
+        let co2_ppm = pas_co2.get_co2_ppm().await.unwrap();
 
         info!("CO2: {} ppm", co2_ppm);
 
-        Timer::after_millis(10000).await;
+        Timer::after_secs(10).await;
     }
 }

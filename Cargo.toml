@@ -1,17 +1,18 @@
 [package]
 name = "pas-co2-rs"
-version = "0.1.0-beta.1"
+version = "0.1.0-beta.0"
 edition = "2021"
 authors = [
     "Joel Schulz-Andres <joel@systemscape.de>",
     "Julian Dickert <julian@systemscape.de>",
 ]
-description = "Inofficial Rust driver for Infineon PAS CO2 sensor"
-license = "MIT"
-categories = ["no-std", "embedded", "sensor", "co2"]
-
-readme = "README.md"
 repository = "https://github.com/Systemscape/pas-co2-rs"
+
+description = "Inofficial Rust driver for Infineon PAS CO2 sensor"
+license-file = "LICENSE"
+readme = "README.md"
+
+categories = ["no-std", "embedded", "sensor", "co2"]
 
 [features]
 default = ["defmt"]
@@ -20,6 +21,7 @@ defmt = ["dep:defmt", "embedded-hal/defmt-03"]
 [dependencies]
 defmt = { version = "0.3", optional = true }
 embedded-hal = "1.0.0"
+embedded-hal-async = "1.0.0"
 num_enum = { version = "0.7.2", default-features = false }
 
 [badges]

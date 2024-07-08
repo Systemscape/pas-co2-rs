@@ -1,37 +1,13 @@
 # pas-co2-rs
 Inofficial Rust driver for Infineon XENSIV (TM) PAS CO2 sensor.
 
-```rust
-// Obtain an instance of the driver
-let mut pas_co2 = PasCo2::new(i2c);
+## Non-async I2C
+Currently, there is no support for synchronous I2C, i.e., embedded-hal. Only embedded-hal-async is supported.
+It is straightforward to add this, but would result in a lot of code duplication.
 
-info!("Status: {}", pas_co2.get_status());
+## Examples
+You can find an example for the STM32F469 in the examples folder inside the repository.
+This should be easy to adapt to any other platform thanks to embedded-hal.
 
-// Set to idle mode (default)
-let mut mode = MeasurementMode::default();
-mode.operating_mode = measurement_mode::OperatingMode::Idle;
-pas_co2.set_measurement_mode(mode).unwrap();
-
-let pressure: u16 = 950; //hPa
-
-pas_co2
-    .set_pressure_compensation(PressureCompensation(pressure))
-    .unwrap();
-
-let status = pas_co2.get_status().unwrap();
-info!("Status: {}", status);
-
-pas_co2.clear_status().unwrap();
-
-loop {
-    pas_co2.start_measurement().unwrap();
-
-    Timer::after_millis(1150).await;
-
-    let co2_ppm = pas_co2.get_co2_ppm().unwrap();
-
-    info!("CO2: {} ppm", co2_ppm);
-
-    Timer::after_millis(10000).await;
-}
-```
+## Contributing
+Feel free to contribute to this project by opening a pull-request or creating an issue for bugs, questions or suggestions.

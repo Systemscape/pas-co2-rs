@@ -4,19 +4,24 @@ name = "stm32f4-example"
 license = "MIT"
 
 [dependencies]
-# Change stm32f429zi to your chip name, if necessary.
-embassy-stm32 = { git = "https://github.com/embassy-rs/embassy.git", rev = "2a38787a8375675a7c3b8d7d7dc4ca6505734bca", features = [
+# Change stm32f469ni to your chip name, if necessary.
+embassy-stm32 = { git = "https://github.com/embassy-rs/embassy.git", rev = "d8bd5907ca9dc1f239ca0e603b51ec723e1fef1b", features = [
     "defmt",
     "stm32f469ni",
     "memory-x",
     "unstable-pac",
     "time-driver-any",
-    "exti"
 ] }
 
-embassy-executor = { git = "https://github.com/embassy-rs/embassy.git", rev = "2a38787a8375675a7c3b8d7d7dc4ca6505734bca", features = ["task-arena-size-32768", "arch-cortex-m", "executor-thread", "defmt", "integrated-timers"] }
+embassy-executor = { git = "https://github.com/embassy-rs/embassy.git", rev = "d8bd5907ca9dc1f239ca0e603b51ec723e1fef1b", features = [
+    "task-arena-size-32768",
+    "arch-cortex-m",
+    "executor-thread",
+    "defmt",
+    "integrated-timers",
+] }
 
-embassy-time = { git = "https://github.com/embassy-rs/embassy.git", rev = "2a38787a8375675a7c3b8d7d7dc4ca6505734bca", features = [
+embassy-time = { git = "https://github.com/embassy-rs/embassy.git", rev = "d8bd5907ca9dc1f239ca0e603b51ec723e1fef1b", features = [
     "defmt",
     "defmt-timestamp-uptime",
     "tick-hz-32_768",
